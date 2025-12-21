@@ -1,0 +1,21 @@
+const mongoose = require('mongoose');
+
+const questionSchema = new mongoose.Schema({
+  text: { type: String, required: true },
+  type: { type: String, enum: ['MCQ', 'Multi-Select', 'True/False'], required: true },
+  options: [{ type: String }],
+  correctAnswer: mongoose.Schema.Types.Mixed, // Array for Multi-Select, string/bool for others
+  points: { type: Number, default: 1 }
+});
+
+const quizSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  instructorId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  questions: [questionSchema],
+  startTime: { type: Date },
+  endTime: { type: Date },
+  duration: { type: Number }, // in minutes
+}, { timestamps: true });
+
+module.exports = mongoose.model('Quiz', quizSchema);
