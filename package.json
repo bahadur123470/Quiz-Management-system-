@@ -9,7 +9,8 @@
     "start-reporting": "cd server/reporting-service && node src/index.js",
     "start-server": "concurrently \"npm run start-auth\" \"npm run start-quiz\" \"npm run start-assessment\" \"npm run start-reporting\"",
     "start-client": "cd client && npm run dev",
-    "dev": "concurrently \"npm run start-server\" \"npm run start-client\""
+    "dev": "concurrently \"npm run start-server\" \"npm run start-client\"",
+    "install-all": "npm install && cd client && npm install && cd ../server/auth-service && npm install && cd ../quiz-service && npm install && cd ../assessment-service && npm install && cd ../reporting-service && npm install"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

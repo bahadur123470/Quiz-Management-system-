@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
+import toast from 'react-hot-toast';
 
 const Register = () => {
   const [username, setUsername] = useState('');
@@ -19,10 +20,10 @@ const Register = () => {
     setIsLoading(true);
     try {
       await authService.register({ username, password, role });
-      alert('Registration successful! Please login.');
+      toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (err) {
-      alert('Registration failed: ' + (err.response?.data?.error || err.message));
+      toast.error(err.response?.data?.message || 'Registration failed.');
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +37,7 @@ const Register = () => {
 
       <Card className="w-full max-w-[440px] relative z-10 backdrop-blur-2xl bg-white/5 border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)]">
         <div className="text-center mb-8">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
@@ -65,7 +66,7 @@ const Register = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          
+
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-400 ml-1">Select Role</label>
             <div className="grid grid-cols-2 gap-4">
@@ -74,11 +75,10 @@ const Register = () => {
                   key={r}
                   type="button"
                   onClick={() => setRole(r)}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 transition-all duration-200 font-medium ${
-                    role === r 
-                      ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]' 
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 transition-all duration-200 font-medium ${role === r
+                      ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
                       : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
-                  }`}
+                    }`}
                 >
                   <UserCircle size={18} />
                   {r}
@@ -86,8 +86,8 @@ const Register = () => {
               ))}
             </div>
           </div>
-          
-          <Button 
+
+          <Button
             className="w-full py-4 text-lg flex items-center justify-center gap-2 group !from-emerald-600 !to-teal-600"
             disabled={isLoading}
           >
@@ -102,7 +102,7 @@ const Register = () => {
 
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
           <p className="text-slate-400 text-sm">
-            Already have an account? 
+            Already have an account?
             <Link to="/login" className="ml-2 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
               Sign In
             </Link>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { quizService, assessmentService } from '../services/api';
+import { quizService, assessmentService, reportingService } from '../services/api';
 import { Play, CheckCircle, Clock, Award, BookOpen, ChevronRight, Timer, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Navbar from '../components/ui/Navbar';
@@ -9,10 +10,21 @@ import Navbar from '../components/ui/Navbar';
 const StudentDashboard = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
+  const [stats, setStats] = useState({ availableQuizzes: 0, completedQuizzes: 0, certificates: 0 });
 
   useEffect(() => {
     fetchQuizzes();
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const { data } = await reportingService.getStudentStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    }
+  };
 
   const fetchQuizzes = async () => {
     try {
@@ -26,7 +38,7 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-200">
       <Navbar role="Student" />
-      
+
       <main className="max-w-7xl mx-auto px-6 pt-32 pb-20">
         <AnimatePresence mode="wait">
           {activeQuiz ? (
@@ -54,9 +66,9 @@ const StudentDashboard = () => {
               {/* Quick Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 {[
-                  { label: 'Available Quizzes', value: quizzes.length, icon: BookOpen, color: 'text-emerald-400' },
-                  { label: 'Completed', value: '12', icon: CheckCircle, color: 'text-indigo-400' },
-                  { label: 'Certificates', value: '3', icon: Award, color: 'text-amber-400' },
+                  { label: 'Available Quizzes', value: stats.availableQuizzes, icon: BookOpen, color: 'text-emerald-400' },
+                  { label: 'Completed', value: stats.completedQuizzes, icon: CheckCircle, color: 'text-indigo-400' },
+                  { label: 'Certificates', value: stats.certificates, icon: Award, color: 'text-amber-400' },
                 ].map((stat, i) => (
                   <Card key={i} className="flex items-center gap-5 p-5 !bg-white/5 border-white/5">
                     <div className={`p-4 rounded-2xl bg-slate-900/50 ${stat.color}`}>
@@ -88,7 +100,7 @@ const StudentDashboard = () => {
                   >
                     <Card className="group h-full flex flex-col hover:border-emerald-500/30 transition-all duration-300 overflow-hidden relative">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-emerald-500/10 transition-colors" />
-                      
+
                       <div className="flex-1 relative z-10">
                         <div className="flex justify-between items-start mb-4">
                           <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/20">
@@ -105,8 +117,8 @@ const StudentDashboard = () => {
                           {quiz.description || "Challenge yourself with this comprehensive assessment designed to test your core knowledge."}
                         </p>
                       </div>
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => setActiveQuiz(quiz)}
                         className="w-full !from-emerald-600 !to-teal-600 border border-emerald-500/20 shadow-lg shadow-emerald-500/10"
                       >
@@ -146,14 +158,16 @@ const QuizPortal = ({ quiz, onClose }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      const userId = localStorage.getItem('userId');
       const { data } = await assessmentService.submitQuiz({
-        userId: '65842823051412001bb0000a',
+        userId,
         quizId: quiz._id,
         answers: userAnswers
       });
+      toast.success('Quiz submitted successfully!');
       setScore(data.score);
     } catch (err) {
-      alert('Submission failed');
+      toast.error('Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,17 +177,17 @@ const QuizPortal = ({ quiz, onClose }) => {
     return (
       <Card className="max-w-xl mx-auto text-center p-12 !bg-slate-900/60 border-emerald-500/20">
         <motion.div
-           initial={{ scale: 0 }}
-           animate={{ scale: 1 }}
-           transition={{ type: "spring", stiffness: 200, damping: 15 }}
-           className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/20"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-500/20"
         >
           <CheckCircle size={48} className="text-white" />
         </motion.div>
-        
+
         <h1 className="text-4xl font-black text-white mb-4 italic uppercase tracking-tighter">Evaluation Complete</h1>
         <p className="text-slate-400 mb-8 border-b border-white/5 pb-8">Great job! You've successfully finished the assessment. Here's your final result.</p>
-        
+
         <div className="relative inline-block mb-10">
           <div className="absolute inset-0 bg-emerald-500 opacity-20 blur-3xl animate-pulse" />
           <div className="relative text-7xl font-black text-white">
@@ -210,16 +224,16 @@ const QuizPortal = ({ quiz, onClose }) => {
             <p className="text-slate-500 text-sm font-medium">Question {currentIdx + 1} of {quiz.questions.length}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4 bg-slate-950/40 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
-           <Timer className="text-emerald-500" size={20} />
-           <span className="text-white font-mono text-lg font-bold">14:52</span>
+          <Timer className="text-emerald-500" size={20} />
+          <span className="text-white font-mono text-lg font-bold">14:52</span>
         </div>
       </div>
 
       {/* Progress Bar */}
       <div className="h-2 w-full bg-slate-800 rounded-full mb-12 overflow-hidden border border-white/5">
-        <motion.div 
+        <motion.div
           className="h-full bg-gradient-to-r from-emerald-600 to-teal-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -228,7 +242,7 @@ const QuizPortal = ({ quiz, onClose }) => {
 
       <Card className="!bg-slate-900/40 border-slate-700/30 p-10 min-h-[500px] flex flex-col shadow-2xl">
         <div className="flex-1">
-          <motion.h2 
+          <motion.h2
             key={currentIdx}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -236,7 +250,7 @@ const QuizPortal = ({ quiz, onClose }) => {
           >
             {q.text}
           </motion.h2>
-          
+
           <div className="grid gap-4">
             {q.options.map((opt, idx) => {
               const isActive = selectedOption === opt;
@@ -246,17 +260,15 @@ const QuizPortal = ({ quiz, onClose }) => {
                   whileHover={{ x: 8 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => handleSelect(opt)}
-                  className={`flex items-center gap-5 p-5 w-full text-left rounded-2xl border-2 transition-all duration-200 group ${
-                    isActive 
-                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]' 
-                      : 'bg-slate-900/50 border-white/5 text-slate-400 hover:border-white/10 hover:bg-slate-800/50'
-                  }`}
+                  className={`flex items-center gap-5 p-5 w-full text-left rounded-2xl border-2 transition-all duration-200 group ${isActive
+                    ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+                    : 'bg-slate-900/50 border-white/5 text-slate-400 hover:border-white/10 hover:bg-slate-800/50'
+                    }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${
-                    isActive 
-                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg' 
-                      : 'bg-slate-900 border-slate-700 group-hover:border-slate-500'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${isActive
+                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg'
+                    : 'bg-slate-900 border-slate-700 group-hover:border-slate-500'
+                    }`}>
                     {String.fromCharCode(65 + idx)}
                   </div>
                   <span className="font-semibold text-lg">{opt}</span>
@@ -267,25 +279,25 @@ const QuizPortal = ({ quiz, onClose }) => {
         </div>
 
         <div className="flex items-center justify-between mt-16 pt-8 border-t border-white/5">
-          <button 
+          <button
             disabled={currentIdx === 0}
             onClick={() => setCurrentIdx(currentIdx - 1)}
             className="flex items-center gap-2 text-slate-500 hover:text-white disabled:opacity-0 transition-all font-bold uppercase tracking-widest text-xs"
           >
             <ArrowLeft size={16} /> Previous Question
           </button>
-          
+
           <div className="flex items-center gap-4">
             {currentIdx === quiz.questions.length - 1 ? (
-              <Button 
-                onClick={handleSubmit} 
+              <Button
+                onClick={handleSubmit}
                 className="px-8 !from-emerald-600 !to-emerald-500 shadow-emerald-500/20"
                 disabled={isSubmitting || !selectedOption}
               >
                 {isSubmitting ? 'Evaluating...' : 'Complete Assessment'}
               </Button>
             ) : (
-              <Button 
+              <Button
                 onClick={() => setCurrentIdx(currentIdx + 1)}
                 className="px-8 group"
                 disabled={!selectedOption}
@@ -296,7 +308,7 @@ const QuizPortal = ({ quiz, onClose }) => {
           </div>
         </div>
       </Card>
-      
+
       <div className="mt-8 flex items-center justify-center gap-3 text-[10px] text-slate-600 uppercase tracking-widest font-black">
         <ShieldCheck size={14} />
         Secure Academic Session In Progress

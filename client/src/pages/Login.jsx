@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { authService } from '../services/api';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogIn, ShieldCheck, ArrowRight } from 'lucide-react';
+import { LogIn, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { authService } from '../services/api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -19,10 +20,13 @@ const Login = () => {
     try {
       const { data } = await authService.login({ username, password });
       localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
-      navigate(data.role === 'Instructor' ? '/instructor' : '/student');
+      localStorage.setItem('role', data.user.role);
+      localStorage.setItem('username', data.user.username);
+      localStorage.setItem('userId', data.user.id);
+      toast.success('Successfully logged in!');
+      navigate(data.user.role === 'Instructor' ? '/instructor' : '/student');
     } catch (err) {
-      alert('Login failed: ' + (err.response?.data?.error || err.message));
+      toast.error(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +40,7 @@ const Login = () => {
 
       <Card className="w-full max-w-[440px] relative z-10 backdrop-blur-2xl bg-white/5 border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)]">
         <div className="text-center mb-8">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
@@ -67,14 +71,14 @@ const Login = () => {
             required
             autoComplete="current-password"
           />
-          
-          <Button 
+
+          <Button
             className="w-full py-4 text-lg flex items-center justify-center gap-2 group"
             disabled={isLoading}
           >
             {isLoading ? 'Authenticating...' : (
               <>
-                Sign In 
+                Sign In
                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </>
             )}
@@ -83,13 +87,13 @@ const Login = () => {
 
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
           <p className="text-slate-400 text-sm">
-            New to the platform? 
+            New to the platform?
             <Link to="/register" className="ml-2 text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
               Create an account
             </Link>
           </p>
         </div>
-        
+
         <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
           <ShieldCheck size={12} />
           Enterprise Grade Security

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { quizService } from '../services/api';
-import { Plus, List, BarChart2, BookOpen, Clock, Users, ChevronRight, X, LayoutGrid } from 'lucide-react';
+import { quizService, reportingService } from '../services/api';
+import { Plus, List, BarChart2, BookOpen, Clock, Users, ChevronRight, X, LayoutGrid, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
@@ -10,10 +11,21 @@ import Navbar from '../components/ui/Navbar';
 const InstructorDashboard = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [showWizard, setShowWizard] = useState(false);
+  const [stats, setStats] = useState({ totalQuizzes: 0, activeStudents: 0, avgScore: 0 });
 
   useEffect(() => {
     fetchQuizzes();
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const { data } = await reportingService.getInstructorStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    }
+  };
 
   const fetchQuizzes = async () => {
     try {
@@ -27,7 +39,7 @@ const InstructorDashboard = () => {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-200">
       <Navbar role="Instructor" />
-      
+
       <main className="max-w-7xl mx-auto px-6 pt-32 pb-20">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <motion.div
@@ -44,7 +56,7 @@ const InstructorDashboard = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <Button 
+            <Button
               className="px-8 py-3.5 text-lg flex items-center gap-3 shadow-indigo-500/20 shadow-lg"
               onClick={() => setShowWizard(true)}
             >
@@ -56,9 +68,9 @@ const InstructorDashboard = () => {
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {[
-            { label: 'Total Quizzes', value: quizzes.length, icon: BookOpen, color: 'text-indigo-400' },
-            { label: 'Active Students', value: '1.2k', icon: Users, color: 'text-emerald-400' },
-            { label: 'Avg. Score', value: '84%', icon: BarChart2, color: 'text-purple-400' },
+            { label: 'Total Quizzes', value: stats.totalQuizzes, icon: BookOpen, color: 'text-indigo-400' },
+            { label: 'Active Students', value: stats.activeStudents, icon: Users, color: 'text-emerald-400' },
+            { label: 'Avg. Score', value: `${stats.avgScore}%`, icon: BarChart2, color: 'text-purple-400' },
           ].map((stat, i) => (
             <Card key={i} className="flex items-center gap-5 p-5 !bg-white/5 border-white/5">
               <div className={`p-4 rounded-2xl bg-slate-900/50 ${stat.color}`}>
@@ -110,8 +122,27 @@ const InstructorDashboard = () => {
                             <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-full border border-indigo-500/20">
                               Active
                             </span>
-                            <div className="text-slate-500 flex items-center gap-1.5 text-xs font-medium">
-                              <Clock size={14} /> 20 mins
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm('Delete this quiz?')) {
+                                    try {
+                                      await quizService.deleteQuiz(quiz._id);
+                                      toast.success('Quiz deleted');
+                                      fetchQuizzes();
+                                    } catch (err) {
+                                      toast.error('Failed to delete quiz');
+                                    }
+                                  }
+                                }}
+                                className="text-slate-500 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                              <div className="text-slate-500 flex items-center gap-1.5 text-xs font-medium">
+                                <Clock size={14} /> 20 mins
+                              </div>
                             </div>
                           </div>
                           <h3 className="text-xl font-bold text-white mb-3 group-hover:text-indigo-400 transition-colors uppercase tracking-tight">
@@ -121,7 +152,7 @@ const InstructorDashboard = () => {
                             {quiz.description || "No description provided."}
                           </p>
                         </div>
-                        
+
                         <div className="pt-6 border-t border-white/5 flex items-center justify-between">
                           <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold">
                             <List size={16} />
@@ -162,19 +193,26 @@ const QuizWizard = ({ onClose }) => {
     setQuestions([...questions, { text: '', type: 'MCQ', options: ['', '', '', ''], correctAnswer: '', points: 1 }]);
   };
 
+  const removeQuestion = (idx) => {
+    setQuestions(questions.filter((_, i) => i !== idx));
+  };
+
   const handleSave = async () => {
-    if (!title) return alert('Title is required');
+    if (!title) return toast.error('Title is required');
+    const instructorId = localStorage.getItem('userId');
+
     setIsSaving(true);
     try {
-      await quizService.createQuiz({ 
-        title, 
-        description, 
-        instructorId: '65842823051412001bb00001', 
-        questions 
+      await quizService.createQuiz({
+        title,
+        description,
+        instructorId,
+        questions
       });
+      toast.success('Quiz published successfully!');
       onClose();
     } catch (err) {
-      alert('Failed to save quiz');
+      toast.error('Failed to save quiz');
     } finally {
       setIsSaving(false);
     }
@@ -182,7 +220,7 @@ const QuizWizard = ({ onClose }) => {
 
   return (
     <Card className="!bg-slate-900/40 border-indigo-500/20 max-w-4xl mx-auto overflow-visible relative">
-      <button 
+      <button
         onClick={onClose}
         className="absolute -top-3 -right-3 w-10 h-10 bg-slate-800 rounded-full border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors z-10"
       >
@@ -200,11 +238,11 @@ const QuizWizard = ({ onClose }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <Input 
-          label="Quiz Title" 
-          placeholder="e.g. Advanced JavaScript Patterns" 
-          value={title} 
-          onChange={e => setTitle(e.target.value)} 
+        <Input
+          label="Quiz Title"
+          placeholder="e.g. Advanced JavaScript Patterns"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
         />
         <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-400 ml-1">Difficulty Level</label>
@@ -215,17 +253,17 @@ const QuizWizard = ({ onClose }) => {
           </select>
         </div>
       </div>
-      
+
       <div className="mb-10">
         <label className="block text-sm font-medium text-slate-400 ml-1 mb-2">Detailed Description</label>
-        <textarea 
-          className="premium-input min-h-[120px] resize-none" 
-          placeholder="Explain the objectives and topics covered in this quiz..." 
-          value={description} 
-          onChange={e => setDescription(e.target.value)} 
+        <textarea
+          className="premium-input min-h-[120px] resize-none"
+          placeholder="Explain the objectives and topics covered in this quiz..."
+          value={description}
+          onChange={e => setDescription(e.target.value)}
         />
       </div>
-      
+
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b border-white/5 pb-4">
           <h3 className="text-xl font-bold text-white">Questions Configuration</h3>
@@ -235,32 +273,41 @@ const QuizWizard = ({ onClose }) => {
         </div>
 
         {questions.map((q, idx) => (
-          <motion.div 
+          <motion.div
             key={idx}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             className="p-6 bg-white/5 border border-white/5 rounded-2xl relative group"
           >
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs">
-                {idx + 1}
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs">
+                  {idx + 1}
+                </div>
+                <button
+                  onClick={() => removeQuestion(idx)}
+                  className="p-2 text-slate-600 hover:text-rose-500 transition-colors"
+                  title="Remove Question"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
               <div className="flex-1 space-y-4">
-                <Input 
-                  placeholder="Enter your question text here..." 
-                  value={q.text} 
+                <Input
+                  placeholder="Enter your question text here..."
+                  value={q.text}
                   onChange={e => {
                     const newQs = [...questions];
                     newQs[idx].text = e.target.value;
                     setQuestions(newQs);
-                  }} 
+                  }}
                 />
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {q.options.map((opt, oIdx) => (
                     <div key={oIdx} className="relative">
-                      <input 
-                        className="premium-input !py-2 !pl-10 text-sm" 
+                      <input
+                        className="premium-input !py-2 !pl-10 text-sm"
                         placeholder={`Option ${oIdx + 1}`}
                         value={opt}
                         onChange={e => {
@@ -278,8 +325,8 @@ const QuizWizard = ({ onClose }) => {
           </motion.div>
         ))}
 
-        <button 
-          onClick={addQuestion} 
+        <button
+          onClick={addQuestion}
           className="w-full py-4 border-2 border-dashed border-slate-700 rounded-2xl text-slate-500 font-bold hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-3"
         >
           <Plus size={20} /> Add New Question
@@ -287,15 +334,15 @@ const QuizWizard = ({ onClose }) => {
       </div>
 
       <div className="flex items-center gap-4 mt-12 pt-8 border-t border-white/5">
-        <Button 
+        <Button
           className="flex-1 py-4 text-lg"
           onClick={handleSave}
           disabled={isSaving}
         >
           {isSaving ? 'Processing...' : 'Publish Assessment'}
         </Button>
-        <Button 
-          className="flex-1 py-4 text-lg !from-slate-800 !to-slate-800 border border-white/5 hover:border-white/10" 
+        <Button
+          className="flex-1 py-4 text-lg !from-slate-800 !to-slate-800 border border-white/5 hover:border-white/10"
           onClick={onClose}
         >
           Save to Drafts
